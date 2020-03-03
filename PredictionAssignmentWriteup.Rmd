@@ -5,26 +5,99 @@ date: "6/2/2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+## 1. Overview
+
+The goal of this project is to predict the manner in which 6 participants did exercises. The dataset contain 5 classes of exercise (sitting-down, standing-up, standing, walking, and sitting) collected on 8 hours of activities of 4 healthy subjects. The "classe" variable in the training set describe how well the participant did the exercise. Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes.
+
+More information is available from the website here: [http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
+
+## 2. Load and Clean data
+
+```{r setup01, echo=TRUE, message=FALSE, warning=FALSE}
+
+#Download the csv files from url
+urlTrain <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+urlTest <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+fileNameTrain <- "pml-training.csv"
+fileNameTest <- "pml-testing.csv"
+download.file(url = urlTrain, destfile = fileNameTrain,)
+download.file(url = urlTest, destfile = fileNameTest)
+
+#Read the csv fie into df and convert NA strings
+df_PmlTrain <- read.csv(fileNameTrain, na.strings=c("NA","#DIV/0!",""))
+df_PmlTest <- read.csv(fileNameTest, na.strings=c("NA","#DIV/0!",""))
+
+#Get the dimensions of dataframes
+dim(df_PmlTrain)
+dim(df_PmlTest)
+
 ```
 
-## R Markdown
+Cleaning data, removing columns with NA's values and unused columns.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r clean01, echo=TRUE, message=FALSE, warning=FALSE}
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# removing columns with NA values
+df_PmlTrain <- df_PmlTrain[,colSums(is.na(df_PmlTrain)) == 0]
+df_PmlTest <- df_PmlTest[,colSums(is.na(df_PmlTest)) == 0]
 
-```{r cars}
-summary(cars)
+# Removing columns 1:7, descriptive attributes.
+df_PmlTrain <-df_PmlTrain[,-c(1:7)]
+df_PmlTest <-df_PmlTest[,-c(1:7)]
+
+# Check dimensions
+dim(df_PmlTrain)
+dim(df_PmlTest)
+
 ```
 
-## Including Plots
+## 3. Prediction models comparison
 
-You can also embed plots, for example:
+Partioning pml training dataset in training and testing for better performance and accuracy.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r pred01, echo=TRUE, message=FALSE, warning=FALSE}
+#load libraries
+library(caret)
+library(randomForest)
+
+inTrain <- createDataPartition( y = df_PmlTrain$classe , p = 0.7, list = FALSE)
+
+training <- df_PmlTrain[inTrain, ]
+testing <- df_PmlTrain[-inTrain, ]
+
+```
+Evaluating differents models: LDA (Linear Discriminant Analysis), Random Forest and GBM (General Boosing Model).
+
+```{r pred01.1, echo=TRUE, message=FALSE, warning=FALSE}
+#LDA
+set.seed(1234)
+mod_lda <- train(classe ~ ., data = training, method = "lda")
+pred_lda <- predict(mod_lda, newdata = testing)
+
+
+#Random Forest
+mod_rf <- randomForest(classe ~ ., data = training)
+pred_rf <- predict(mod_rf, newdata = testing)
+
+#GBM
+controlGBM <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+mod_gbm <- train(classe ~ ., data = training, method = "gbm", trControl=controlGBM, verbose = FALSE)
+pred_gbm <- predict(mod_gbm, newdata = testing)
+
+#comparing accuracy
+c(lda=confusionMatrix(pred_lda, testing$classe)$overall[1], RF=confusionMatrix(pred_rf, testing$classe)$overall[1], GBM=confusionMatrix(pred_gbm, testing$classe)$overall[1])
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Random Forest has the highest Accuracy: 0.9946, so we choose this model to predict the 20 different test cases.
+
+## 4. Applying the selected Model to the Test Data
+
+Applying Random Forest to the 20 test cases.
+
+```{r test01, echo=TRUE, message=FALSE, warning=FALSE}
+
+pred_TestData <- predict(mod_rf, newdata = df_PmlTest)
+pred_TestData
+
+```

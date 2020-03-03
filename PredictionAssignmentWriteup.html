@@ -438,7 +438,7 @@ pred_gbm &lt;- predict(mod_gbm, newdata = testing)
 #comparing accuracy
 c(lda=confusionMatrix(pred_lda, testing$classe)$overall[1], RF=confusionMatrix(pred_rf, testing$classe)$overall[1], GBM=confusionMatrix(pred_gbm, testing$classe)$overall[1])</code></pre>
 <pre><code>## lda.Accuracy  RF.Accuracy GBM.Accuracy 
-##    0.7048428    0.9933730    0.9622770</code></pre>
+##    0.7056924    0.9960918    0.9636364</code></pre>
 <p>Random Forest has the highest Accuracy: 0.9946, so we choose this model to predict the 20 different test cases.</p>
 </div>
 <div id="applying-the-selected-model-to-the-test-data" class="section level2">
